@@ -48,10 +48,11 @@ public class FlightDelaysController {
     	}
     	model.createGraph( selectedAirline);
     	this.txtResult.appendText("Grafo creato.\n");
-    	//TODO List<Route> tenWorstRoutes = model.getTenWorstRoutes();
+    	List<Route> tenWorstRoutes = model.worstRoutes();
     	this.txtResult.appendText("Dieci rotte peggiori: \n");
+    	
     	for(Route r: tenWorstRoutes) {
-    		this.txtResult.appendText(r.toString());
+    		this.txtResult.appendText(r.toString() + " weight :"+ r.getAverageDalay()/r.getDistance()+"\n");
     	}
     }
 

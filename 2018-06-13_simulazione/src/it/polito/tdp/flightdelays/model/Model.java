@@ -1,5 +1,7 @@
 package it.polito.tdp.flightdelays.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.jgrapht.Graphs;
@@ -42,6 +44,22 @@ public class Model {
 			graph.setEdgeWeight(e, r.getAverageDalay()/r.getDistance());
 		}
 		System.out.format("Grafo creato con %d vertici e %d archi.\n", graph.vertexSet().size(), graph.edgeSet().size());
+		for(Airport a: graph.vertexSet())
+			System.out.println(a);
+		for(Route r:this.routes)
+			System.out.println(r);
+	}
+	
+	public List<Route> worstRoutes(){
+		
+		if(this.graph==null)
+			return null;
+		List<Route> worst = new ArrayList<>();
+		Collections.sort(this.routes, new RoutesByWeightComparator()); //IN ORDINE DECRESCENTE
+		for(int i =0; i<10; i++) {
+			worst.add(this.routes.get(i));
+		}
+		return worst;
 	}
 
 }
