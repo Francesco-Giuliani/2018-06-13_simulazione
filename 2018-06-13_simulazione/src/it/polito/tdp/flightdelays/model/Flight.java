@@ -15,6 +15,7 @@ public class Flight {
 	private int arrivalDelay;
 	private int airTime;
 	private int distance;
+	private Airport originAirport, destinationAirport;
 	
 	public Flight(int id, String airlineId, int flightNumber, String originAirportId, String destinationAirportId,
 			LocalDateTime scheduledDepartureDate, LocalDateTime arrivalDate, int departureDelay, int arrivalDelay,
@@ -148,4 +149,42 @@ public class Flight {
 		builder.append("]");
 		return builder.toString();
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + id;
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Flight other = (Flight) obj;
+		if (id != other.id)
+			return false;
+		return true;
+	}
+
+	public Airport getDestinationAirport() {
+		return this.destinationAirport;
+	}
+	public Airport getOriginAirport() {
+		return this.originAirport;
+	}
+
+	public void setOriginAirport(Airport originAirport) {
+		this.originAirport = originAirport;
+	}
+
+	public void setDestinationAirport(Airport destinationAirport) {
+		this.destinationAirport = destinationAirport;
+	}
+	
 }

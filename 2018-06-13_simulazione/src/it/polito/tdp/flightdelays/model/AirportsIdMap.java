@@ -2,7 +2,7 @@ package it.polito.tdp.flightdelays.model;
 
 import java.util.HashMap;
 
-public class AiportsIdMap extends HashMap<String, Airport> {
+public class AirportsIdMap extends HashMap<String, Airport> {
 
 	public Airport getOrPut(Airport searched) {
 		Airport old = this.get(searched.getId());

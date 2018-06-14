@@ -1,17 +1,21 @@
 package it.polito.tdp.flightdelays.db;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import it.polito.tdp.flightdelays.model.AiportsIdMap;
+import it.polito.tdp.flightdelays.model.AirportsIdMap;
 import it.polito.tdp.flightdelays.model.Airline;
 import it.polito.tdp.flightdelays.model.Airport;
 import it.polito.tdp.flightdelays.model.Flight;
+import it.polito.tdp.flightdelays.model.FlightsIdMap;
 import it.polito.tdp.flightdelays.model.Route;
 
 public class FlightDelaysDAO {
@@ -64,7 +68,7 @@ public class FlightDelaysDAO {
 		}
 	}
 
-	public List<Flight> loadAllFlights() {
+	private List<Flight> loadAllFlights(AirportsIdMap apidmap) {
 		String sql = "SELECT id, airline, flight_number, origin_airport_id, destination_airport_id, scheduled_dep_date, "
 				+ "arrival_date, departure_delay, arrival_delay, air_time, distance FROM flights";
 		List<Flight> result = new LinkedList<Flight>();
@@ -75,11 +79,13 @@ public class FlightDelaysDAO {
 			ResultSet rs = st.executeQuery();
 
 			while (rs.next()) {
+				String originAp = rs.getString("origin_airport_id"), destAp=rs.getString("destination_airport_id");
 				Flight flight = new Flight(rs.getInt("id"), rs.getString("airline"), rs.getInt("flight_number"),
-						rs.getString("origin_airport_id"), rs.getString("destination_airport_id"),
-						rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
+						originAp, destAp, rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
 						rs.getTimestamp("arrival_date").toLocalDateTime(), rs.getInt("departure_delay"),
 						rs.getInt("arrival_delay"), rs.getInt("air_time"), rs.getInt("distance"));
+				flight.setOriginAirport(apidmap.get(originAp));
+				flight.setDestinationAirport(apidmap.get(destAp));
 				result.add(flight);
 			}
 
@@ -93,7 +99,7 @@ public class FlightDelaysDAO {
 		}
 	}
 
-	public List<Airport> getAirportsForAirline(Airline selectedAirline, AiportsIdMap apIdMap) {
+	public List<Airport> getAirportsForAirline(Airline selectedAirline, AirportsIdMap apIdMap) {
 		String sql = "SELECT distinct id, airport, city, state, country, latitude, longitude \r\n" + 
 				"from airports where id in (select ORIGIN_AIRPORT_ID\r\n" + 
 				"								 from flights f\r\n" + 
@@ -127,7 +133,7 @@ public class FlightDelaysDAO {
 		}
 	}
 
-	public List<Route> getRoutesForAirline(Airline selectedAirline, AiportsIdMap apIdMap) {
+	public List<Route> getRoutesForAirline(Airline selectedAirline, AirportsIdMap apidmap, FlightsIdMap fidmap) {
 		String sql = "select *\r\n" + 
 				"from flights f\r\n" + 
 				"where f.AIRLINE = ?\r\n" + 
@@ -146,30 +152,35 @@ public class FlightDelaysDAO {
 			Route last = null;
 			boolean first=true, change = false;
 			while (rs.next()) {
-				Route route = new Route(selectedAirline, apIdMap.get(rs.getString("ORIGIN_AIRPORT_ID")), apIdMap.get(rs.getString("DESTINATION_AIRPORT_ID")));
+				Route route = new Route(selectedAirline, apidmap.get(rs.getString("ORIGIN_AIRPORT_ID")), apidmap.get(rs.getString("DESTINATION_AIRPORT_ID")));
 				last=route;
 				if(first) {
 					precedentRoute = route;
 					first=false;
 					
+					String originAp = rs.getString("origin_airport_id"), destAp=rs.getString("destination_airport_id");
 					Flight flight = new Flight(rs.getInt("id"), rs.getString("airline"), rs.getInt("flight_number"),
-							rs.getString("origin_airport_id"), rs.getString("destination_airport_id"),
-							rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
+							originAp, destAp, rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
 							rs.getTimestamp("arrival_date").toLocalDateTime(), rs.getInt("departure_delay"),
 							rs.getInt("arrival_delay"), rs.getInt("air_time"), rs.getInt("distance"));
 					
-					routeFlights.add(flight);
+					flight.setOriginAirport(route.getOriginAirport());
+					flight.setDestinationAirport(route.getDestinationAirport());
+					
+					routeFlights.add(fidmap.getOrPutNew(flight));
 					
 				}else {
 					
 					if(route.equals(precedentRoute)) {
+						String originAp = rs.getString("origin_airport_id"), destAp=rs.getString("destination_airport_id");
 						Flight flight = new Flight(rs.getInt("id"), rs.getString("airline"), rs.getInt("flight_number"),
-								rs.getString("origin_airport_id"), rs.getString("destination_airport_id"),
-								rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
+								originAp, destAp, rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
 								rs.getTimestamp("arrival_date").toLocalDateTime(), rs.getInt("departure_delay"),
 								rs.getInt("arrival_delay"), rs.getInt("air_time"), rs.getInt("distance"));
 						
-						routeFlights.add(flight);
+						flight.setOriginAirport(route.getOriginAirport());
+						flight.setDestinationAirport(route.getDestinationAirport());			
+						routeFlights.add(fidmap.getOrPutNew(flight));
 						
 					}else {
 						precedentRoute.setFlights(new ArrayList<>(routeFlights));
@@ -177,13 +188,14 @@ public class FlightDelaysDAO {
 						routeFlights.clear();
 						result.add(precedentRoute);
 						
+						String originAp = rs.getString("origin_airport_id"), destAp=rs.getString("destination_airport_id");
 						Flight flight = new Flight(rs.getInt("id"), rs.getString("airline"), rs.getInt("flight_number"),
-								rs.getString("origin_airport_id"), rs.getString("destination_airport_id"),
-								rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
+								originAp, destAp, rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
 								rs.getTimestamp("arrival_date").toLocalDateTime(), rs.getInt("departure_delay"),
 								rs.getInt("arrival_delay"), rs.getInt("air_time"), rs.getInt("distance"));
-						
-						routeFlights.add(flight);
+						flight.setOriginAirport(route.getOriginAirport());
+						flight.setDestinationAirport(route.getDestinationAirport());
+						routeFlights.add(fidmap.getOrPutNew(flight));
 						
 						precedentRoute = route;
 					}
@@ -209,7 +221,55 @@ public class FlightDelaysDAO {
 		}
 	}
 
-	/*public double getAvgDelaysForRoute(Route r) {
+	public Flight getFirstFlightFromAirportInDateTime(Airport currentAirport, LocalDateTime start_DATE) {
+		//TODO
+		return null;
+	}
+
+	public Flight getFirstFlightForAirlineAirportInDateTime(Airline selectedAirline, Airport currentAirport,
+			LocalDateTime startTime, AirportsIdMap apidmap, FlightsIdMap fidmap) {
+		String sql = "select * " + 
+				"from flights f " + 
+				"where f.AIRLINE = ? " + 
+				"and f.ORIGIN_AIRPORT_ID = ? " + 
+				"and f.DESTINATION_AIRPORT_ID in (select id from airports) " + 
+				"and f.SCHEDULED_DEP_DATE >= ? "
+				+ "order by f.SCHEDULED_DEP_DATE";
+		
+
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setString(1, selectedAirline.getId());
+			st.setString(2, currentAirport.getId());
+			st.setTimestamp(3, Timestamp.valueOf(startTime)); 
+			ResultSet rs = st.executeQuery();
+
+			if(rs.next()) {
+			
+				String originAp = rs.getString("origin_airport_id"), destAp=rs.getString("destination_airport_id");
+				Flight flight = new Flight(rs.getInt("id"), rs.getString("airline"), rs.getInt("flight_number"),
+						originAp, destAp, rs.getTimestamp("scheduled_dep_date").toLocalDateTime(),
+						rs.getTimestamp("arrival_date").toLocalDateTime(), rs.getInt("departure_delay"),
+						rs.getInt("arrival_delay"), rs.getInt("air_time"), rs.getInt("distance"));
+				flight.setOriginAirport(apidmap.get(originAp));
+				flight.setDestinationAirport(apidmap.get(destAp));
+
+				conn.close();
+				return fidmap.getOrPutNew(flight);
+			}else {
+			conn.close();
+			return null;
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			System.out.println("Errore connessione al database");
+			throw new RuntimeException("Error Connection Database");
+		}
+
+	}
+
+	private double getAvgDelaysForRoute(Route r) {
 		String sql = "SELECT id, airline, flight_number, origin_airport_id, destination_airport_id, scheduled_dep_date, "
 				+ "arrival_date, departure_delay, arrival_delay, air_time, distance FROM flights";
 		List<Flight> result = new LinkedList<Flight>();
@@ -229,7 +289,7 @@ public class FlightDelaysDAO {
 			}
 
 			conn.close();
-			return result;
+			return -0.1;
 
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -237,5 +297,5 @@ public class FlightDelaysDAO {
 			throw new RuntimeException("Error Connection Database");
 		}
 		
-	}*/
+	}
 }
